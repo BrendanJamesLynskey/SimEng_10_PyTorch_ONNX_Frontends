@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation Engineering Toolkit 10 — From PyTorch and ONNX to an Accelerator Model</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&family=Geist+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #1c1815;
+            --bg-card: #231e1a;
+            --bg-code: #2b2520;
+            --text-primary: #efe8dc;
+            --text-secondary: #a2978b;
+            --accent: #aabd59;
+            --accent-dim: #aabd5944;
+            --accent-glow: #aabd5933;
+            --border: #3a322b;
+            --font-display: 'Bricolage Grotesque', sans-serif;
+            --font-mono: 'Geist Mono', 'Geist Mono', monospace;
+            --font-body: 'Instrument Sans', sans-serif;
+            --max-width: 900px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 17px;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .hero > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .series-label {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 .accent {
+            color: var(--accent);
+        }
+
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+
+        /* ── Tag Pills ── */
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+            white-space: nowrap;
+        }
+
+        /* ── Pipeline Flow Bar ── */
+        .pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            max-width: var(--max-width);
+        }
+
+        .pipeline-step {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .pipeline-arrow {
+            color: var(--accent);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        /* ── Slides ── */
+        .slide {
+            min-height: 100vh;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .slide-number {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-weight: 700;
+            color: var(--accent-dim);
+            position: absolute;
+            top: 2rem;
+            right: 1.5rem;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .slide h2 {
+            font-family: var(--font-display);
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            line-height: 1.25;
+        }
+
+        .slide h3 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .slide p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .slide p strong {
+            color: var(--text-primary);
+        }
+
+        .slide ul, .slide ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .slide li {
+            margin-bottom: 0.4rem;
+        }
+
+        .slide li strong {
+            color: var(--text-primary);
+        }
+
+        /* ── Code Blocks ── */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 1.25rem 0;
+            overflow: hidden;
+        }
+
+        .code-header {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            background: rgba(170,189,89,0.08);
+            padding: 0.4rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .code-block pre {
+            margin: 0;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #dad1c5;
+        }
+
+        /* Syntax highlighting (manual) */
+        .kw { color: #de805a; }
+        .fn { color: #d7bbdf; }
+        .str { color: #bcdbd4; }
+        .cm { color: #a2978b; font-style: italic; }
+        .num { color: #97cdc6; }
+        .type { color: #e3b174; }
+        .dir { color: #de805a; }
+        .mac { color: #e3b174; }
+
+        /* ── Tables ── */
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.25rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: var(--bg-code);
+            color: var(--accent);
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-display);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:nth-child(even) td {
+            background: rgba(35,30,26,0.5);
+        }
+
+        /* ── Diagrams ── */
+        .diagram-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-box {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .diagram-box.accent {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(170,189,89,0.08);
+        }
+
+        .diagram-box.dim {
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+
+        .diagram-arrow {
+            color: var(--accent);
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        /* Vertical flow diagrams */
+        .diagram-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-vertical .diagram-arrow {
+            font-size: 1.1rem;
+        }
+
+        /* Nested hierarchy diagram */
+        .hierarchy {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .hierarchy-level {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .hierarchy-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .hierarchy-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+
+        .hierarchy-item {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .hierarchy-item.accent {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(170,189,89,0.08);
+        }
+
+        /* Grid diagram */
+        .diagram-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-grid.cols-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .diagram-grid.cols-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .diagram-panel {
+            padding: 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .diagram-panel.accent-border {
+            border-left: 3px solid var(--accent);
+        }
+
+        .diagram-panel h4 {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .diagram-panel p, .diagram-panel ul {
+            font-size: 0.85rem;
+        }
+
+        /* ── Callout Boxes ── */
+        .callout {
+            background: var(--bg-card);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+
+        .callout p {
+            margin-bottom: 0;
+        }
+
+        .callout .callout-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.3rem;
+        }
+
+        /* ── Tier Visual ── */
+        .tier-visual {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .tier-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .tier-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 90px;
+            text-align: right;
+        }
+
+        .tier-fill {
+            height: 32px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding: 0 0.75rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            white-space: nowrap;
+            transition: width 0.6s ease;
+        }
+
+        .tier-cost {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            min-width: 70px;
+        }
+
+        /* ── Contents list ── */
+        .contents-list {
+            list-style: none;
+            padding-left: 0;
+            counter-reset: contents;
+        }
+
+        .contents-list li {
+            counter-increment: contents;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .contents-list li:last-child {
+            border-bottom: none;
+        }
+
+        .contents-list li::before {
+            content: counter(contents, decimal-leading-zero);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            min-width: 2rem;
+        }
+
+        .contents-list a {
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .contents-list a:hover {
+            color: var(--accent);
+        }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            max-width: var(--max-width);
+            margin: 0 auto;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .slide {
+                padding: 3rem 1rem;
+                min-height: auto;
+            }
+
+            .slide-number {
+                font-size: 3rem;
+                top: 1.5rem;
+                right: 1rem;
+            }
+
+            .slide h2 {
+                font-size: 1.5rem;
+            }
+
+            .diagram-grid.cols-2,
+            .diagram-grid.cols-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .pipeline {
+                gap: 0.15rem;
+            }
+
+            .pipeline-step {
+                font-size: 0.6rem;
+                padding: 0.2rem 0.4rem;
+            }
+
+            .hero h1 {
+                font-size: 1.8rem;
+            }
+
+            table {
+                font-size: 0.78rem;
+            }
+
+            .tier-label {
+                min-width: 60px;
+                font-size: 0.65rem;
+            }
+
+            .tier-fill {
+                font-size: 0.6rem;
+                height: 26px;
+            }
+        }
+
+        /* ── Interactive controls (added for Local LLM series) ── */
+        .control-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .control-row label {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            min-width: 180px;
+        }
+        .control-row input[type="range"] {
+            flex: 1;
+            min-width: 160px;
+            accent-color: var(--accent);
+        }
+        .control-row input[type="number"],
+        .control-row select {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 4px;
+            padding: 0.3rem 0.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+        .control-row .val {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            min-width: 80px;
+            text-align: right;
+        }
+        .btn {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 0.4rem 0.9rem;
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .btn:hover { background: rgba(170,189,89,0.2); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn.secondary {
+            background: var(--bg-code);
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+        .result-box {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            margin-top: 0.75rem;
+        }
+        .result-box .line-label { color: var(--text-secondary); }
+        .result-box .line-val   { color: var(--accent); font-weight: 600; }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .metric {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.6rem 0.8rem;
+            text-align: center;
+        }
+        .metric .metric-label {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .metric .metric-value {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            color: var(--accent);
+            font-weight: 600;
+            margin-top: 0.2rem;
+        }
+
+        /* Canvas / SVG containers */
+        .canvas-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1.25rem 0;
+            overflow-x: auto;
+        }
+        .canvas-wrap canvas,
+        .canvas-wrap svg {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+        }
+
+        /* Small inline badge */
+        .badge {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 0.1rem 0.45rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: middle;
+            margin-left: 0.3rem;
+        }
+        .badge.ok    { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .badge.warn  { border-color: #e3b174; color: #e3b174; background: rgba(227,177,116,0.08); }
+        .badge.bad   { border-color: #de805a; color: #de805a; background: rgba(222,128,90,0.08); }
+
+
+        /* ── LLM Inference Simulators additions ── */
+        .canvas-wrap canvas { image-rendering: auto; display: block; width: 100%; height: auto; }
+        .canvas-wrap svg { max-width: 100%; height: auto; }
+        .ladder { display: grid; gap: 0.4rem; margin: 1.25rem 0; }
+        .ladder-row {
+            display: grid; grid-template-columns: 11rem 1fr 7.5rem; gap: 0.75rem; align-items: center;
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+            padding: 0.55rem 0.85rem; font-size: 0.88rem;
+        }
+        .ladder-row .rung { font-family: var(--font-display); font-weight: 600; color: var(--accent); }
+        .ladder-row .speed { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary); text-align: right; }
+        .res-list { list-style: none; padding: 0; margin: 0.75rem 0; }
+        .res-list li { padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+        .res-list li:last-child { border-bottom: none; }
+        .res-list .what { color: var(--text-secondary); display: block; font-size: 0.86rem; margin-top: 0.15rem; }
+        .res-list a { color: var(--accent); text-decoration: none; }
+        .res-list a:hover { text-decoration: underline; }
+        .qa { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin: 0.6rem 0; padding: 0.2rem 1rem; }
+        .qa summary { cursor: pointer; padding: 0.6rem 0; font-weight: 600; }
+        .qa p, .qa ul { margin-bottom: 0.75rem; font-size: 0.92rem; }
+        .sim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.4rem 1.25rem; }
+        .chart-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+        .chart-title { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.3rem; }
+        .slide a { color: var(--accent); }
+        @media (max-width: 640px) {
+            .ladder-row { grid-template-columns: 1fr; gap: 0.2rem; }
+            .ladder-row .speed { text-align: left; }
+        }
+        .concepts { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 0.75rem 1rem; margin-top: 1.25rem; font-size: 0.88rem; }
+        .concepts p { margin: 0 0 0.4rem; color: var(--text-secondary); }
+        .concepts .chips { display: flex; flex-wrap: wrap; gap: 0.35rem 0.5rem; }
+        .concepts .chips a { border: 1px solid var(--border); border-radius: 999px; padding: 0.1rem 0.6rem; text-decoration: none; font-size: 0.82rem; }
+        .concepts .chips a:hover { border-color: var(--accent); }
+        /* ── Simulation Engineering Toolkit additions ── */
+        .code-header a.src-link { color: var(--text-secondary); text-decoration: none; float: right; }
+        .code-header a.src-link:hover { color: var(--accent); text-decoration: underline; }
+        p.src { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary); margin: -0.75rem 0 1rem; }
+        p.src a { color: var(--text-secondary); }
+        .control-panel select, .control-panel input[type=number] { background: var(--bg-code); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; padding: 0.2rem 0.4rem; font-family: var(--font-mono); font-size: 0.8rem; }
+        .mut-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.4rem 1rem; font-size: 0.85rem; }
+        .mut-grid label { display: flex; gap: 0.5rem; align-items: baseline; cursor: pointer; }
+        .mut-list { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.7; }
+        .mut-list .killed { color: var(--accent); }
+        .mut-list .survived { color: #de805a; }
+        .hero { overflow: hidden; }   /* the 600px glow must not widen the page on phones */
+        .chart-pair > *, .diagram-grid > *, .sim-grid > * { min-width: 0; }   /* let wide code scroll inside its column */
+        .slide p code, .slide li code, .slide td code { overflow-wrap: anywhere; }
+        .control-panel select { max-width: 100%; }
+    </style>
+</head>
+<body>
+
+<header class="hero">
+    <div class="series-label">Simulation Engineering Toolkit &mdash; Presentation 10</div>
+    <h1>From PyTorch and ONNX to an <span class="accent">Accelerator Model</span></h1>
+    <p class="subtitle">A working front end for an accelerator simulator: real model configurations (Llama-3-8B and -70B, Mistral, Qwen, GPT-2) traced without weights on the meta device and under fake tensors, torch.export, a torch.compile backend and an ONNX graph walk, all four agreeing exactly on the arithmetic, checked against closed forms and PyTorch's FLOP counter, costed on a roofline, with operator coverage counted three ways.</p>
+
+    <div class="tags">
+        <span class="tag">Meta device</span>
+        <span class="tag">Fake tensors</span>
+        <span class="tag">torch.export</span>
+        <span class="tag">torch.compile</span>
+        <span class="tag">ONNX</span>
+        <span class="tag">Operator coverage</span>
+    </div>
+
+    <div class="pipeline">
+        <span class="pipeline-step">Model</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Capture</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Trace</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Check</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Cost</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Cover</span>
+    </div>
+</header>
+
+<section class="slide" id="slide-00">
+    <div class="slide-number">00</div>
+    <h2>Topics We'll Cover</h2>
+    <ul class="contents-list">
+        <li><a href="#slide-01">Why a Simulator Needs a Front End</a></li>
+        <li><a href="#slide-02">One Trace Format, Four Front Ends</a></li>
+        <li><a href="#slide-03">Real Models, No Weights: the Meta Device</a></li>
+        <li><a href="#slide-04">Front End 1: the Dispatch Trace</a></li>
+        <li><a href="#slide-05">Meta or Fake Tensors: What the Trace Means</a></li>
+        <li><a href="#slide-06">Front Ends 2 and 3: torch.export and a torch.compile Backend</a></li>
+        <li><a href="#slide-07">Front End 4: ONNX Without the Weights</a></li>
+        <li><a href="#slide-08">Four Front Ends, One Answer</a></li>
+        <li><a href="#slide-09">Checking the Trace Against the Closed Form</a></li>
+        <li><a href="#slide-10">Costing the Trace</a></li>
+        <li><a href="#slide-11">Interactive: Operator Coverage, Counted Three Ways</a></li>
+        <li><a href="#slide-12">Operator Coverage as an Engineering Metric</a></li>
+        <li><a href="#slide-13">What to Take Away</a></li>
+    </ul>
+    <div class="concepts">
+        <p><strong>Concepts used here, and where they are explained.</strong> Each links to a glossary entry: this <a href="https://brendanjameslynskey.github.io/SimEng_Hub_Toolkit/#glossary">series glossary</a>, or the glossaries of LLM Inference Simulators and FHE Accelerator Simulators for concepts those series already explain.</p>
+        <div class="chips"><a href="https://brendanjameslynskey.github.io/SimEng_Hub_Toolkit/#g-optrace" title="The operators a model executes, in order, with each tensor&#x27;s shape, element size, identity and whether it is a weight: the input a cost model needs from a front end.">Operator trace</a><a href="https://brendanjameslynskey.github.io/LLM_Hub_Inference_Simulators/#g-dispatch" title="A TorchDispatchMode sees every ATen call; on the meta device tensors have shapes but no storage, so a 70B model&#x27;s exact operator trace can be recorded on a laptop.">Dispatch interception and the meta device</a><a href="https://brendanjameslynskey.github.io/SimEng_Hub_Toolkit/#g-faketensor" title="Tensors with shapes and a claimed device but no data. What a trace shows depends on that device (fused or decomposed attention) and on whether the library detects tracing and takes another path.">Fake tensors and traced code paths</a><a href="https://brendanjameslynskey.github.io/LLM_Hub_Inference_Simulators/#g-export" title="Capturing a PyTorch model ahead of time as one graph of ATen operators with fake-tensor shapes on every node; run_decompositions() lowers it to the smaller Core ATen set a cost model can cover.">torch.export and FX graphs</a><a href="https://brendanjameslynskey.github.io/LLM_Hub_Inference_Simulators/#g-compilebackend" title="TorchDynamo captures graphs as Python runs and hands each to a backend callable, a clean hook for a simulator that estimates cost and then runs the graph eagerly.">torch.compile backends</a><a href="https://brendanjameslynskey.github.io/LLM_Hub_Inference_Simulators/#g-onnxrt" title="ONNX is a framework-neutral graph format; ONNX Runtime partitions graphs between execution providers, each claiming the nodes it can run, with fallback to the CPU.">ONNX and ONNX Runtime execution providers</a><a href="https://brendanjameslynskey.github.io/SimEng_Hub_Toolkit/#g-onnxwalk" title="Walking an exported graph needs shape values propagated through Shape and Reshape chains (data_prop) and constant subgraphs folded as a runtime would; weights can be exported as typed inputs without their data.">ONNX shape inference and constant folding</a><a href="https://brendanjameslynskey.github.io/LLM_Hub_Inference_Simulators/#g-flops" title="About 2 FLOPs per matmul parameter per token, plus attention that grows with context. A decode step must also read every weight and all of the KV cache. These two counts drive every timing and energy number in the series.">FLOP and byte counting</a><a href="https://brendanjameslynskey.github.io/LLM_Hub_Inference_Simulators/#g-roofline" title="Attainable performance is the lower of peak compute and bandwidth × arithmetic intensity (FLOPs per byte). The ridge point is the intensity at which both limits meet; below it a kernel is memory-bound.">Roofline, arithmetic intensity and ridge point</a><a href="https://brendanjameslynskey.github.io/SimEng_Hub_Toolkit/#g-fusionbound" title="Costing a trace per operator assumes every operator reads and writes memory (an upper bound); assuming only matmul, attention and gathers touch memory gives a lower bound. Real compilers fall between.">Unfused and ideal-fusion bounds</a><a href="https://brendanjameslynskey.github.io/SimEng_Hub_Toolkit/#g-opcoverage" title="Which operators a cost model has rules for, and which the accelerator runs: counted by operators, FLOPs and time, because a device can hold nearly all the FLOPs and little of the time.">Operator coverage</a><a href="https://brendanjameslynskey.github.io/LLM_Hub_Inference_Simulators/#g-prefill" title="Prefill processes the whole prompt in one pass (matrix-matrix, compute-bound) and produces the first token. Decode then generates one token per sequence per step (matrix-vector, memory-bound). They need different hardware balances.">Prefill and decode</a><a href="https://brendanjameslynskey.github.io/LLM_Hub_Inference_Simulators/#g-kvcache" title="The stored keys and values of every token of every live sequence, so attention need not recompute them. Its size (320 KiB per token for Llama-3-70B) limits batch size and is what disaggregation must move.">KV cache</a><a href="https://brendanjameslynskey.github.io/LLM_Hub_Inference_Simulators/#g-differential" title="Requiring two independent implementations to agree exactly on the same input: here the fast path against the baseline, and the browser JavaScript against the Python simulator.">Differential testing</a></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-01">
+    <div class="slide-number">01</div>
+    <h2>Why a Simulator Needs a Front End</h2>
+    <p>An accelerator simulator is only as useful as the workloads it can run. Hand-written workloads ("a 4096 &times; 4096 matmul, then a softmax") answer the questions the architect already thought of. Real users arrive with a PyTorch model or an ONNX file. A <strong>front end</strong> turns either into the operator stream the cost model consumes, so the simulator sees what the framework would actually execute.</p>
+    <p><a href="https://brendanjameslynskey.github.io/InfSim_09_Framework_Integration/">LLM Inference Simulators 09</a> surveys the integration routes. This deck <em>builds</em> four of them in <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend">Torch_Sim_Frontend</a>, runs them on published model configurations (Llama-3-8B and -70B, Mistral-7B, Qwen2.5-0.5B, GPT-2) on a CPU-only machine without a single weight, and checks them against each other, against closed forms and against PyTorch's own FLOP counter.</p>
+    <div class="callout">
+        <div class="callout-label">The questions a front end must answer</div>
+        <ul>
+            <li>Which operators run, in what order, on what shapes? (the trace)</li>
+            <li>Which bytes are weights and which are activations? (the memory traffic)</li>
+            <li>Which operators can the accelerator run, and what happens to the rest? (operator coverage)</li>
+        </ul>
+    </div>
+</section>
+
+<section class="slide" id="slide-02">
+    <div class="slide-number">02</div>
+    <h2>One Trace Format, Four Front Ends</h2>
+    <div class="canvas-wrap">
+        <svg viewBox="0 0 720 230" width="720" height="230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four front ends (dispatch trace, torch.export, torch.compile backend, ONNX walk) produce one trace format, which feeds cost models and a coverage report">
+            <style>
+                .f1 { fill: #2b2520; stroke: #aabd59; stroke-width: 1.5; }
+                .f2 { fill: #2b2520; stroke: #e3b174; stroke-width: 1.5; }
+                .f3 { fill: #2b2520; stroke: #97cdc6; stroke-width: 1.5; }
+                .ft { fill: #efe8dc; font-family: 'Geist Mono', monospace; font-size: 11px; }
+                .fd { fill: #a2978b; font-family: 'Geist Mono', monospace; font-size: 10px; }
+                .fa { stroke: #a2978b; stroke-width: 1.3; fill: none; marker-end: url(#fa1); }
+            </style>
+            <defs><marker id="fa1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a2978b"/></marker></defs>
+            <rect x="10" y="10" width="200" height="44" rx="6" class="f1"/><text x="20" y="29" class="ft">dispatch trace</text><text x="20" y="45" class="fd">TorchDispatchMode, meta/fake</text>
+            <rect x="10" y="64" width="200" height="44" rx="6" class="f1"/><text x="20" y="83" class="ft">torch.export</text><text x="20" y="99" class="fd">Core ATen FX graph</text>
+            <rect x="10" y="118" width="200" height="44" rx="6" class="f1"/><text x="20" y="137" class="ft">torch.compile backend</text><text x="20" y="153" class="fd">Dynamo + AOTAutograd</text>
+            <rect x="10" y="172" width="200" height="44" rx="6" class="f1"/><text x="20" y="191" class="ft">ONNX graph walk</text><text x="20" y="207" class="fd">shape inference, folding</text>
+            <path d="M212,32 L282,105" class="fa"/><path d="M212,86 L282,110" class="fa"/><path d="M212,140 L282,118" class="fa"/><path d="M212,194 L282,124" class="fa"/>
+            <rect x="286" y="80" width="170" height="70" rx="6" class="f2"/><text x="298" y="102" class="ft">simfront-trace/1</text><text x="298" y="120" class="fd">ops, shapes, sizes,</text><text x="298" y="134" class="fd">tensor ids, weight flag</text>
+            <path d="M458,105 L520,60" class="fa"/><path d="M458,115 L520,115" class="fa"/><path d="M458,125 L520,172" class="fa"/>
+            <rect x="524" y="34" width="186" height="44" rx="6" class="f3"/><text x="534" y="53" class="ft">Roofline</text><text x="534" y="69" class="fd">unfused / fused bounds</text>
+            <rect x="524" y="92" width="186" height="44" rx="6" class="f3"/><text x="534" y="111" class="ft">Offload</text><text x="534" y="127" class="fd">device + host + link</text>
+            <rect x="524" y="150" width="186" height="44" rx="6" class="f3"/><text x="534" y="169" class="ft">coverage report</text><text x="534" y="185" class="fd">ops, FLOPs, time</text>
+        </svg>
+    </div>
+    <p>Every front end produces the same record per operator. Tensor <em>identities</em> let a cost model follow data from producer to consumer, which is what an offload model needs to charge a transfer. The <em>weight flag</em> separates parameter traffic from activations, and is propagated through views (<code>W.t()</code> before <code>mm</code> is still a weight).</p>
+    <div class="code-block">
+        <div class="code-header">src/simfront/trace.py: one operator <a class="src-link" href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/src/simfront/trace.py">source</a></div>
+        <pre><code><span class="kw">class</span> <span class="type">Op</span>:
+    <span class="str">""</span><span class="str">"One operator call. ``name`` is canonical: ``aten.mm`` or ``onnx.MatMul``."</span><span class="str">""</span>
+
+    name: str
+    inputs: list[<span class="type">TensorMeta</span>]
+    outputs: list[<span class="type">TensorMeta</span>]
+    attrs: dict = <span class="fn">field</span>(default_factory=dict)
+    category: str = <span class="str">"unknown"</span>
+    flops: int = <span class="num">0</span>
+    bytes_read: int = <span class="num">0</span>
+    bytes_written: int = <span class="num">0</span>
+    weight_bytes: int = <span class="num">0</span>      <span class="cm"># the part of bytes_read that is parameters</span></code></pre>
+    </div>
+</section>
+
+<section class="slide" id="slide-03">
+    <div class="slide-number">03</div>
+    <h2>Real Models, No Weights: the Meta Device</h2>
+    <p>A tensor on the <code>meta</code> device has a shape, a dtype and a stride, but no storage. Building a model inside <code>torch.device("meta")</code> gives every parameter that form, so a 70-billion-parameter model is instantiated in under a second and costs no memory. The configurations are the architectural fields of the published Hugging Face <code>config.json</code> files, bundled with their source URLs.</p>
+    <div class="code-block">
+        <div class="code-header">src/simfront/models.py <a class="src-link" href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/src/simfront/models.py">source</a></div>
+        <pre><code><span class="kw">def</span> <span class="fn">build</span>(cfg, device: str = <span class="str">"meta"</span>, dtype: torch.dtype = torch.bfloat16, seed: int = <span class="num">0</span>) -&gt; torch.nn.<span class="type">Module</span>:
+    <span class="str">""</span><span class="str">"``AutoModelForCausalLM.from_config`` on ``device``; ``cfg`` is a config or a registry name."</span><span class="str">""</span>
+    <span class="kw">from</span> transformers <span class="kw">import</span> <span class="type">AutoModelForCausalLM</span>
+
+    <span class="kw">if</span> <span class="fn">isinstance</span>(cfg, str):
+        cfg = <span class="fn">config</span>(cfg)
+    torch.<span class="fn">manual_seed</span>(seed)
+    <span class="kw">with</span> torch.<span class="fn">device</span>(device):
+        model = <span class="type">AutoModelForCausalLM</span>.<span class="fn">from_config</span>(cfg, dtype=dtype)
+    <span class="kw">return</span> model.<span class="fn">eval</span>()</code></pre>
+    </div>
+    <div class="table-wrap"><table>
+<thead><tr><th>Model</th><th>Parameters</th><th>Operators</th><th>Op types</th><th>Capture (s)</th><th>TFLOP</th><th>Weights read (GB)</th><th>Types with a cost rule</th></tr></thead>
+<tbody>
+<tr><td>llama3-8b</td><td>8.03 B</td><td>3,557</td><td>30</td><td>0.64</td><td>32.97</td><td>15.03</td><td>30</td></tr>
+<tr><td>llama3-70b</td><td>70.55 B</td><td>8,837</td><td>30</td><td>1.23</td><td>295.83</td><td>139.04</td><td>30</td></tr>
+<tr><td>mistral-7b</td><td>7.24 B</td><td>3,685</td><td>31</td><td>0.66</td><td>31.36</td><td>14.24</td><td>31</td></tr>
+<tr><td>qwen2.5-0.5b</td><td>0.49 B</td><td>2,677</td><td>31</td><td>0.41</td><td>2.39</td><td>0.99</td><td>31</td></tr>
+<tr><td>gpt2</td><td>0.12 B</td><td>771</td><td>27</td><td>0.17</td><td>0.67</td><td>0.25</td><td>27</td></tr>
+</tbody></table></div>
+    <p class="src">Source: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/examples/results.md">examples/results.md</a> in Torch_Sim_Frontend</p>
+    <p>Every parameter was checked to be a meta tensor. The whole results script, which traces all of these and more, peaks at 647 MB of resident memory.</p>
+</section>
+
+<section class="slide" id="slide-04">
+    <div class="slide-number">04</div>
+    <h2>Front End 1: the Dispatch Trace</h2>
+    <p>Every PyTorch operator passes through the dispatcher. A <code>TorchDispatchMode</code> sees each call <em>after</em> autograd and Python-level decompositions, with the real argument tensors, so it records exactly what would execute. The mode below also gives each tensor an identity and marks views of parameters as weights:</p>
+    <div class="code-block">
+        <div class="code-header">src/simfront/capture/dispatch.py: OpTrace <a class="src-link" href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/src/simfront/capture/dispatch.py">source</a></div>
+        <pre><code><span class="kw">def</span> <span class="fn">__torch_dispatch__</span>(self, func, types, args=(), kwargs=<span class="kw">None</span>):
+    kwargs = kwargs <span class="kw">or</span> {}
+    out = <span class="fn">func</span>(*args, **kwargs)
+    name = <span class="fn">str</span>(func.overloadpacket)                <span class="cm"># e.g. "aten.mm"</span>
+    flat_in, _ = <span class="fn">tree_flatten</span>((args, kwargs))
+    flat_out, _ = <span class="fn">tree_flatten</span>(out)
+    ins = [self.<span class="fn">_meta</span>(t) <span class="kw">for</span> t <span class="kw">in</span> flat_in <span class="kw">if</span> <span class="fn">isinstance</span>(t, torch.<span class="type">Tensor</span>)]
+    <span class="cm"># A view of a parameter (W.t() before mm) is still weight traffic.</span>
+    is_view = name.<span class="fn">split</span>(<span class="str">"."</span>, <span class="num">1</span>)[<span class="num">1</span>] <span class="kw">in</span> <span class="type">VIEW_PACKETS</span>
+    param_view = is_view <span class="kw">and</span> <span class="fn">any</span>(t.param <span class="kw">for</span> t <span class="kw">in</span> ins)
+    outs = [self.<span class="fn">_meta</span>(t, param=param_view) <span class="kw">for</span> t <span class="kw">in</span> flat_out <span class="kw">if</span> <span class="fn">isinstance</span>(t, torch.<span class="type">Tensor</span>)]
+    attrs = {k: v <span class="kw">for</span> k, v <span class="kw">in</span> kwargs.<span class="fn">items</span>() <span class="kw">if</span> <span class="fn">isinstance</span>(v, (int, float, bool, str))}
+    self.ops.<span class="fn">append</span>(<span class="fn">apply_aten_rule</span>(<span class="type">Op</span>(name, ins, outs, attrs)))
+    <span class="kw">return</span> out</code></pre>
+    </div>
+    <ul>
+        <li><strong>A gotcha with real models.</strong> With the KV cache off, transformers 5 checks for packed sequences by calling <code>.item()</code> on a computed tensor, and the meta device cannot produce a value: <code>RuntimeError: Tensor.item() cannot be called on meta tensors</code>. With the cache on, that check is skipped, so meta prefill traces keep the cache on.</li>
+        <li><strong>Decode steps</strong> are traced by running the prompt first (outside the mode, at no cost on the meta device) and then tracing one step with the cache it produced.</li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-05">
+    <div class="slide-number">05</div>
+    <h2>Meta or Fake Tensors: What the Trace Means</h2>
+    <p>The dispatch trace shows what PyTorch would run <em>on the device the tensors claim to be on</em>. On the meta device, <code>scaled_dot_product_attention</code> has no fused kernel and decomposes to <code>bmm</code>, <code>_safe_softmax</code> and a mask over the whole 2,048 &times; 2,048 score matrix per head. Under a <code>FakeTensorMode</code> the tensors claim to be on the CPU, and attention is one fused flash-attention operator per layer.</p>
+    <div class="table-wrap"><table>
+<thead><tr><th>Trace</th><th>Weights</th><th>matmul</th><th>attention</th><th>copy</th><th>elementwise</th><th>Total</th></tr></thead>
+<tbody>
+<tr><td>meta trace</td><td>15.01</td><td>17.18</td><td>0.00</td><td>5.66</td><td>2.16</td><td>25.02</td></tr>
+<tr><td>fake-CPU trace</td><td>15.01</td><td>15.01</td><td>0.27</td><td>0.54</td><td>0.01</td><td>15.84</td></tr>
+</tbody></table></div>
+    <p class="src">Source: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/examples/results.md">examples/results.md</a> in Torch_Sim_Frontend</p>
+    <ul>
+        <li><strong>The arithmetic is identical</strong> (QK<sup>T</sup> and AV FLOPs match exactly). The bytes are not: in decode the meta trace moves 25.02 GB per step against 15.84 GB. 4.30 GB of that is transformers' <code>repeat_kv</code> copying 8 KV heads into 32 for the math path.</li>
+        <li><strong>transformers changes path when it detects tracing.</strong> In eager mode on real data it inspects the mask with <code>.item()</code> and uses SDPA's native grouped-query attention. Under fake tensors, <code>torch.export</code> or <code>torch.compile</code>, it builds an explicit mask and repeats the KV heads. A test pins this down.</li>
+        <li><strong>On plain PyTorch</strong> (no data-dependent Python), fake tensors record exactly the operators and shapes of a real run. That is also tested.</li>
+    </ul>
+    <p>The lesson: a trace is evidence about one code path on one device. Say which.</p>
+</section>
+
+<section class="slide" id="slide-06">
+    <div class="slide-number">06</div>
+    <h2>Front Ends 2 and 3: torch.export and a torch.compile Backend</h2>
+    <p><strong><code>torch.export</code></strong> traces the whole model into one FX graph with fake-tensor metadata on every node, and <code>run_decompositions()</code> lowers it to Core ATen (<a href="https://brendanjameslynskey.github.io/InfSim_09_Framework_Integration/#slide-03">InfSim 09, slide 03</a>). It works on the meta device, with one restriction: transformers' <code>DynamicCache</code> is not a registered pytree, so prefill is exported with <code>use_cache=False</code>. That is safe because transformers recognises the fake tensors and takes its tracing path.</p>
+    <p><strong>A <code>torch.compile</code> backend</strong> is any callable that takes a <code>GraphModule</code> and returns a callable (<a href="https://brendanjameslynskey.github.io/InfSim_09_Framework_Integration/#slide-04">InfSim 09, slide 04</a>). Dynamo's graphs are at the torch level (<code>linear</code>, <code>scaled_dot_product_attention</code>), so this backend hands them to AOTAutograd for an ATen graph, walks it with the same rules as the other front ends, and returns the graph's own <code>forward</code>. The user's program runs unchanged and gives identical outputs (tested).</p>
+    <div class="code-block">
+        <div class="code-header">src/simfront/capture/compile.py <a class="src-link" href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/src/simfront/capture/compile.py">source</a></div>
+        <pre><code><span class="kw">class</span> <span class="type">SimBackend</span>:
+    <span class="str">""</span><span class="str">"``torch.compile(model, backend=SimBackend())``: records an operator trace per captured graph."</span><span class="str">""</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self):
+        self.graphs: list[list[<span class="type">Op</span>]] = []
+
+    <span class="kw">def</span> <span class="fn">__call__</span>(self, gm: torch.fx.<span class="type">GraphModule</span>, example_inputs):
+        <span class="cm"># Dynamo names lifted parameters after their module path ("..._parameters_weight_");</span>
+        <span class="cm"># AOTAutograd keeps the input order, so the i-th placeholder below is the same tensor.</span>
+        is_param = [n.op == <span class="str">"placeholder"</span> <span class="kw">and</span> <span class="str">"_parameters_"</span> <span class="kw">in</span> n.name <span class="kw">for</span> n <span class="kw">in</span> gm.graph.nodes
+                    <span class="kw">if</span> n.op == <span class="str">"placeholder"</span>]
+
+        <span class="kw">def</span> <span class="fn">fw_compiler</span>(fgm: torch.fx.<span class="type">GraphModule</span>, _inputs):
+            ph = [n <span class="kw">for</span> n <span class="kw">in</span> fgm.graph.nodes <span class="kw">if</span> n.op == <span class="str">"placeholder"</span>]
+            params = {n.name <span class="kw">for</span> n, p <span class="kw">in</span> <span class="fn">zip</span>(ph, is_param, strict=<span class="kw">True</span>) <span class="kw">if</span> p}
+            self.graphs.<span class="fn">append</span>(<span class="fn">walk_graph</span>(fgm.graph, params))
+            <span class="kw">return</span> fgm.forward
+
+        <span class="kw">return</span> <span class="fn">aot_autograd</span>(fw_compiler=fw_compiler)(gm, example_inputs)</code></pre>
+    </div>
+    <p>Lifted parameters keep Dynamo's module-path names (<code>..._parameters_weight_</code>), and AOTAutograd keeps the input order, which is how the walk knows which graph inputs are weights.</p>
+</section>
+
+<section class="slide" id="slide-07">
+    <div class="slide-number">07</div>
+    <h2>Front End 4: ONNX Without the Weights</h2>
+    <p>ONNX is the framework-neutral route: whatever produced the model, the cost model sees standard operators with versioned semantics. Three things were needed to make it work on a weightless model:</p>
+    <div class="code-block">
+        <div class="code-header">src/simfront/capture/onnx_walk.py: export without weights <a class="src-link" href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/src/simfront/capture/onnx_walk.py">source</a></div>
+        <pre><code>prog = torch.onnx.<span class="fn">export</span>(model, args, kwargs=kwargs <span class="kw">or</span> {}, dynamo=<span class="kw">True</span>, optimize=<span class="kw">False</span>, verbose=<span class="kw">False</span>)
+<span class="kw">if</span> weights:
+    prog.<span class="fn">save</span>(<span class="fn">str</span>(path))
+<span class="kw">else</span>:
+    prog.<span class="fn">save</span>(<span class="fn">str</span>(path), include_initializers=<span class="kw">False</span>, keep_initializers_as_inputs=<span class="kw">True</span>)</code></pre>
+    </div>
+    <ul>
+        <li><strong>Keep weights as typed inputs.</strong> <code>include_initializers=False, keep_initializers_as_inputs=True</code> drops the data but keeps every weight's shape. Llama-3-8B exports to an 11.3 MB file. The exporter's optimiser is off: it needs real values, and it renames the weights it pre-transposes.</li>
+        <li><strong>Propagate shape values.</strong> <code>infer_shapes(model, data_prop=True)</code>. Without <code>data_prop</code>, Llama's reshape targets are computed, not constant, and every attention MatMul is left without dimensions.</li>
+        <li><strong>Fold constants, as a runtime would.</strong> A node whose inputs are all constants (a <code>Transpose</code> of a weight, the rotary frequencies) costs nothing per inference. A layout op on a weight is still the weight.</li>
+    </ul>
+    <p>ONNX does not tell parameters from buffers (both are initializers), so the export returns the parameter names, including tied aliases (GPT-2's <code>lm_head.weight</code> <em>is</em> <code>transformer.wte.weight</code>).</p>
+</section>
+
+<section class="slide" id="slide-08">
+    <div class="slide-number">08</div>
+    <h2>Four Front Ends, One Answer</h2>
+    <p>Llama-3-8B, one 2,048-token prefill, on the meta device unless stated:</p>
+    <div class="table-wrap"><table>
+<thead><tr><th>Front end</th><th>Operators</th><th>Op types</th><th>Matmul FLOPs</th><th>Fused-attention FLOPs</th><th>Total TFLOP</th><th>Bytes moved (GB)</th><th>Weights read (GB)</th><th>Capture (s)</th></tr></thead>
+<tbody>
+<tr><td>dispatch (meta)</td><td>3,557</td><td>30</td><td>32,938,104,455,168</td><td>0</td><td>32.970</td><td>214.35</td><td>15.027</td><td>0.5</td></tr>
+<tr><td>torch.export + Core ATen</td><td>3,850</td><td>37</td><td>32,938,104,455,168</td><td>0</td><td>32.988</td><td>333.97</td><td>15.027</td><td>13.5</td></tr>
+<tr><td>torch.compile backend</td><td>3,426</td><td>35</td><td>32,938,104,455,168</td><td>0</td><td>32.970</td><td>187.40</td><td>15.027</td><td>11.8</td></tr>
+<tr><td>ONNX (exported without weights)</td><td>6,007</td><td>35</td><td>32,938,104,193,024</td><td>0</td><td>32.980</td><td>169.10</td><td>15.027</td><td>0.7</td></tr>
+<tr><td>dispatch (fake CPU tensors)</td><td>4,577</td><td>37</td><td>30,739,081,199,616</td><td>2,220,498,092,032</td><td>32.966</td><td>70.09</td><td>15.027</td><td>0.9</td></tr>
+</tbody></table></div>
+    <p class="src">Source: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/examples/results.md">examples/results.md</a> in Torch_Sim_Frontend</p>
+    <ul>
+        <li><strong>Matmul FLOPs agree exactly</strong> across all four. ONNX is lower by exactly 262,144: it constant-folds the rotary-frequency matmul. <strong>Weights read agree exactly.</strong></li>
+        <li><strong>Bytes moved differ</strong>, from 70 to 334 GB. ATen views are free, ONNX <code>Transpose</code>, <code>Expand</code> and <code>Slice</code> materialise, and each decomposition upcasts and copies in different places. The arithmetic belongs to the model; the traffic belongs to the decomposition, and a cost model must say which it assumes.</li>
+        <li>The tests check the same agreement on small Llama and GPT-2 models with real data on a CPU, where dispatch and compile keep the fused attention kernel while export and ONNX decompose it.</li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-09">
+    <div class="slide-number">09</div>
+    <h2>Checking the Trace Against the Closed Form</h2>
+    <p>Disaggregated_Inference_Sim costs a step from a closed form (<a href="https://brendanjameslynskey.github.io/InfSim_02_Simulator_Development_Tutorial/">InfSim 02</a>). An operator trace is an independent count of the same thing, so each checks the other:</p>
+    <div class="table-wrap"><table>
+<thead><tr><th>Quantity</th><th>Closed form (InfSim)</th><th>Operator trace</th><th>Difference</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Prefill matmul FLOPs, weights</td><td>30,739,080,937,472</td><td>30,739,080,937,472</td><td>0</td><td>exact</td></tr>
+<tr><td>Prefill attention FLOPs</td><td>1,100,048,498,688 (causal)</td><td>2,199,023,255,552 (unmasked)</td><td>1.999x</td><td>the trace counts what the kernel computes, masked scores included</td></tr>
+<tr><td>Decode matmul FLOPs</td><td>16,083,058,688</td><td>16,083,583,104</td><td>524,416</td><td>the new token also attends to itself: 4 x layers x d = 524,288, + rotary 128</td></tr>
+<tr><td>Decode weight bytes per step</td><td>16,059,990,016</td><td>15,009,857,536</td><td>1,050,132,480</td><td>the closed form reads the whole embedding table; a lookup reads one row</td></tr>
+</tbody></table></div>
+    <p class="src">Source: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/examples/results.md">examples/results.md</a> in Torch_Sim_Frontend</p>
+    <ul>
+        <li><strong>The weight FLOPs agree exactly</strong>, and a Hypothesis property test checks the same identity for random Llama-shaped configurations, lengths and batch sizes. (Its first failure was in the test's formula: the rotary frequencies are computed once per batch, not per sequence.)</li>
+        <li><strong>The trace found two errors in the closed form.</strong> A decode step charges the whole embedding table, 1.05 GB, 6.4% of the step's bytes, when a lookup reads one row. And it leaves out the new token attending to itself. Neither is large; both are the kind of thing only an independent count finds.</li>
+        <li><strong>Attention is a convention, not an error.</strong> The trace counts what the kernel computes (unmasked), the closed form counts useful work (causal).</li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-number">10</div>
+    <h2>Costing the Trace</h2>
+    <p>The first cost model is the InfSim roofline, applied per operator: time = max(FLOPs / FLOP rate, bytes / byte rate), with the same derated H100 rates as Disaggregated_Inference_Sim (a test checks they are the same numbers). <em>Unfused</em> assumes every non-view operator reads its inputs from memory and writes its outputs back. <em>Fused</em> is the ideal-fusion bound, where only matmul, attention and gather operators touch memory.</p>
+    <div class="code-block">
+        <div class="code-header">src/simfront/cost.py: Roofline <a class="src-link" href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/src/simfront/cost.py">source</a></div>
+        <pre><code><span class="kw">def</span> <span class="fn">op_cost</span>(self, op: <span class="type">Op</span>) -&gt; <span class="type">OpCost</span>:
+    <span class="kw">if</span> op.category <span class="kw">in</span> (<span class="str">"view"</span>, <span class="str">"unknown"</span>):
+        <span class="kw">return</span> <span class="type">OpCost</span>(<span class="num">0.0</span>, <span class="str">"free"</span>, <span class="str">"-"</span>)
+    nbytes = op.bytes <span class="kw">if</span> (self.memory == <span class="str">"unfused"</span> <span class="kw">or</span> op.category <span class="kw">in</span> <span class="type">MEMORY_OPS</span>) <span class="kw">else</span> <span class="num">0</span>
+    tc, tm = op.flops / self.flops_rate, nbytes / self.byte_rate
+    <span class="kw">return</span> <span class="type">OpCost</span>(<span class="fn">max</span>(tc, tm) + self.op_overhead, <span class="str">"compute"</span> <span class="kw">if</span> tc &gt;= tm <span class="kw">else</span> <span class="str">"memory"</span>, <span class="str">"accel"</span>)</code></pre>
+    </div>
+    <div class="table-wrap"><table>
+<thead><tr><th>Workload</th><th>Unfused (ms)</th><th>Unfused: time in compute-bound ops</th><th>Fused bound (ms)</th><th>Closed form (ms)</th><th>Closed-form bound</th></tr></thead>
+<tbody>
+<tr><td>Prefill 2,048, meta trace (math attention)</td><td>126.68</td><td>44.6%</td><td>71.01</td><td>58.53</td><td>compute</td></tr>
+<tr><td>Prefill 2,048, fake-CPU trace (fused attention)</td><td>76.14</td><td>79.6%</td><td>60.62</td><td>58.53</td><td>compute</td></tr>
+<tr><td>Decode @2,048, meta trace</td><td>9.34</td><td>0.0%</td><td>6.41</td><td>6.09</td><td>memory</td></tr>
+<tr><td>Decode @2,048, fake-CPU trace</td><td>5.91</td><td>0.0%</td><td>5.70</td><td>6.09</td><td>memory</td></tr>
+</tbody></table></div>
+    <p class="src">Source: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/examples/results.md">examples/results.md</a> in Torch_Sim_Frontend</p>
+    <p>Prefill is compute-bound as a whole. Yet in the meta trace, the materialised score matrix makes more than half its time memory-bound: 126.68 ms, against 76.14 ms with fused attention and 58.53 ms from the closed form. That gap is the case for flash attention, measured from a trace. The per-operator sum is never below the whole-trace roofline, because small memory-bound operators cannot overlap with large matmuls in this model.</p>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-number">11</div>
+    <h2>Interactive: Operator Coverage, Counted Three Ways</h2>
+    <p>The hypothetical optical MAC part from Disaggregated_Inference_Sim (4,000 TFLOP/s peak at 40% efficiency, HBM-class memory) runs only the operator categories you choose. Everything else runs on an illustrative host CPU, and a tensor crosses the link the first time an operator on the other side reads it. Llama-3-8B, fused-attention traces. Every value is a recorded run.</p>
+    <div class="control-panel">
+        <div class="sim-grid">
+            <div class="control-row"><label for="cv-ph">Phase</label><select id="cv-ph"><option value="prefill">prefill, 2,048 tokens</option><option value="decode">decode step at 2,048</option></select></div>
+            <div class="control-row"><label for="cv-ln">Link</label><select id="cv-ln"></select></div>
+            <div class="control-row"><label for="cv-st">Accelerator runs</label><input type="range" id="cv-st" min="0" max="4" step="1" value="0"></div>
+        </div>
+        <div class="metric-grid" id="cv-m"></div>
+        <div class="canvas-wrap"><svg id="cv-svg" viewBox="0 0 720 230" width="720" height="230" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        <div class="result-box" id="cv-r"></div>
+    </div>
+    <script>
+    (function () {
+        const CV = [["Phase", "Link", "Accelerator runs", "Ops on accel", "FLOPs on accel", "Time on accel", "Time on host", "Time in transfers", "Total (ms)"], ["prefill", "PCIe Gen5 x16", "matmul", "16.0%", "93.25%", "1.3%", "87.1%", "11.7%", "1,514.34"], ["prefill", "PCIe Gen5 x16", "+ attention", "18.2%", "99.98%", "4.8%", "48.8%", "46.4%", "426.93"], ["prefill", "PCIe Gen5 x16", "+ elementwise", "71.6%", "100.00%", "10.9%", "21.2%", "67.8%", "288.57"], ["prefill", "PCIe Gen5 x16", "+ norm, reduction, softmax", "76.3%", "100.00%", "13.3%", "20.7%", "66.0%", "243.74"], ["prefill", "PCIe Gen5 x16", "+ copy, creation, gather (everything)", "100.0%", "100.00%", "100.0%", "0.0%", "0.0%", "36.16"], ["prefill", "NVLink 4 (one direction)", "matmul", "16.0%", "93.25%", "1.4%", "96.6%", "2.0%", "1,364.80"], ["prefill", "NVLink 4 (one direction)", "+ attention", "18.2%", "99.98%", "7.9%", "80.3%", "11.8%", "259.40"], ["prefill", "NVLink 4 (one direction)", "+ elementwise", "71.6%", "100.00%", "25.4%", "49.3%", "25.3%", "124.36"], ["prefill", "NVLink 4 (one direction)", "+ norm, reduction, softmax", "76.3%", "100.00%", "29.8%", "46.3%", "23.9%", "108.77"], ["prefill", "NVLink 4 (one direction)", "+ copy, creation, gather (everything)", "100.0%", "100.00%", "100.0%", "0.0%", "0.0%", "36.16"], ["decode", "PCIe Gen5 x16", "matmul", "17.4%", "93.24%", "33.8%", "24.9%", "41.3%", "16.59"], ["decode", "PCIe Gen5 x16", "+ attention", "19.8%", "99.98%", "28.7%", "14.0%", "57.3%", "19.86"], ["decode", "PCIe Gen5 x16", "+ elementwise", "74.7%", "100.00%", "27.0%", "12.8%", "60.1%", "21.12"], ["decode", "PCIe Gen5 x16", "+ norm, reduction, softmax", "79.7%", "100.00%", "27.9%", "13.2%", "58.9%", "20.45"], ["decode", "PCIe Gen5 x16", "+ copy, creation, gather (everything)", "100.0%", "100.00%", "100.0%", "0.0%", "0.0%", "5.91"], ["decode", "NVLink 4 (one direction)", "matmul", "17.4%", "93.24%", "43.4%", "32.0%", "24.7%", "12.92"], ["decode", "NVLink 4 (one direction)", "+ attention", "19.8%", "99.98%", "45.3%", "22.1%", "32.6%", "12.59"], ["decode", "NVLink 4 (one direction)", "+ elementwise", "74.7%", "100.00%", "41.2%", "19.6%", "39.2%", "13.85"], ["decode", "NVLink 4 (one direction)", "+ norm, reduction, softmax", "79.7%", "100.00%", "43.3%", "20.5%", "36.2%", "13.20"], ["decode", "NVLink 4 (one direction)", "+ copy, creation, gather (everything)", "100.0%", "100.00%", "100.0%", "0.0%", "0.0%", "5.91"]];  // from Torch_Sim_Frontend/examples/results.md
+        const $ = id => document.getElementById(id);
+        const num = s => parseFloat(String(s).replace(/,/g, ''));
+        const rows = CV.slice(1).map(r => ({ phase: r[0], link: r[1], runs: r[2], ops: num(r[3]), flops: num(r[4]),
+            acc: num(r[5]), host: num(r[6]), xfer: num(r[7]), ms: num(r[8]) }));
+        [...new Set(rows.map(r => r.link))].forEach(l => $('cv-ln').add(new Option(l, l)));
+        const steps = () => rows.filter(r => r.phase === $('cv-ph').value && r.link === $('cv-ln').value);
+        const T = (x, y, s, a = 'start', c = '#a2978b') => `<text x="${x}" y="${y}" text-anchor="${a}" fill="${c}" font-family="Geist Mono, monospace" font-size="10">${s}</text>`;
+        function draw() {
+            const st = steps(), k = +$('cv-st').value, r = st[k];
+            const m = (l, v) => `<div class="metric"><div class="metric-label">${l}</div><div class="metric-value">${v}</div></div>`;
+            $('cv-m').innerHTML = m('Ops on accelerator', r.ops.toFixed(1) + '%') + m('FLOPs on accelerator', r.flops.toFixed(2) + '%')
+                + m('Time on accelerator', r.acc.toFixed(1) + '%') + m('Step time', r.ms.toLocaleString('en-GB', { minimumFractionDigits: 2 }) + ' ms');
+            const maxMs = Math.max(...st.map(s => s.ms));
+            const X = v => 250 + 370 * Math.log10(v / (st[st.length - 1].ms * 0.8)) / Math.log10(maxMs / (st[st.length - 1].ms * 0.8));
+            let svg = '';
+            st.forEach((s, i) => {
+                const y = 18 + i * 38, w = X(s.ms) - 250, sel = i === k;
+                svg += T(240, y + 15, s.runs.replace(' (everything)', ''), 'end', sel ? '#efe8dc' : '#a2978b');
+                let x = 250;
+                [['acc', '#aabd59'], ['host', '#e3b174'], ['xfer', '#de805a']].forEach(([f, c]) => {
+                    const ww = w * s[f] / 100; if (ww > 0.2) svg += `<rect x="${x}" y="${y}" width="${ww}" height="22" fill="${c}" opacity="${sel ? 1 : 0.55}"/>`; x += ww; });
+                if (sel) svg += `<rect x="249" y="${y - 1}" width="${w + 2}" height="24" fill="none" stroke="#efe8dc" stroke-width="1.5"/>`;
+                svg += T(X(s.ms) + 6, y + 15, s.ms.toLocaleString('en-GB', { maximumFractionDigits: 1 }) + ' ms', 'start', sel ? '#efe8dc' : '#a2978b');
+            });
+            svg += `<rect x="452" y="200" width="262" height="24" fill="#1f1a16" stroke="#3a322b"/>`
+                + `<rect x="460" y="208" width="10" height="10" fill="#aabd59"/>` + T(474, 217, 'accelerator', 'start', '#efe8dc')
+                + `<rect x="552" y="208" width="10" height="10" fill="#e3b174"/>` + T(566, 217, 'host', 'start', '#efe8dc')
+                + `<rect x="608" y="208" width="10" height="10" fill="#de805a"/>` + T(622, 217, 'link', 'start', '#efe8dc');
+            svg += T(10, 222, 'bar length: step time (log scale); colours: where the time goes');
+            $('cv-svg').innerHTML = svg;
+            const first = st[0];
+            let msg = `<span class="line-label">${r.runs}</span>: ` + (k === st.length - 1 ? '' :
+                `${r.flops.toFixed(2)}% of the FLOPs but ${r.acc.toFixed(1)}% of the time are on the accelerator; ${r.host.toFixed(1)}% is the host and ${r.xfer.toFixed(1)}% the link. `);
+            if (k === st.length - 1) msg += 'with every category on the device there are no transfers: this is the device on its own.';
+            else if (k > 0 && r.ms > st[k - 1].ms) msg += `Slower than the previous step (${st[k - 1].ms.toFixed(2)} ms): covering more operators added link crossings. Here the KV-cache append (a copy) stays on the host while attention moves to the device, so the cache crosses the link twice.`;
+            else msg += `Against the device running everything (${st[st.length - 1].ms.toFixed(2)} ms), this is ${(r.ms / st[st.length - 1].ms).toFixed(1)}x slower.`;
+            $('cv-r').innerHTML = msg;
+        }
+        ['cv-ph', 'cv-ln', 'cv-st'].forEach(id => $(id).addEventListener('input', draw));
+        draw();
+    })();
+    </script>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-number">12</div>
+    <h2>Operator Coverage as an Engineering Metric</h2>
+    <p>Two different coverage questions, both worth tracking release over release:</p>
+    <ul>
+        <li><strong>Cost-model coverage:</strong> does every operator in the trace have a cost rule? An operator without one is costed at zero, which silently flatters the hardware. simfront's report names every one. Its first run on GPT-2's ONNX export named <code>SplitToSequence</code> and <code>SequenceAt</code>, and rules were added.</li>
+        <li><strong>Device coverage:</strong> which operators run on the accelerator? Count it by operators, by FLOPs <em>and by time</em>. They tell different stories (slide 11).</li>
+    </ul>
+    <p>PyTorch's own <code>FlopCounterMode</code> shows why the first question matters:</p>
+    <div class="table-wrap"><table>
+<thead><tr><th>Trace</th><th>FlopCounterMode</th><th>simfront matmul</th><th>simfront matmul + attention</th></tr></thead>
+<tbody>
+<tr><td>meta (math attention)</td><td>32,938,104,455,168</td><td>32,938,104,455,168</td><td>32,938,104,455,168</td></tr>
+<tr><td>fake CPU (fused attention)</td><td>30,739,081,199,616</td><td>30,739,081,199,616</td><td>32,959,579,291,648</td></tr>
+</tbody></table></div>
+    <p class="src">Source: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/examples/results.md">examples/results.md</a> in Torch_Sim_Frontend</p>
+    <p>It has no formula for <code>_scaled_dot_product_flash_attention_for_cpu</code>, so on the fused trace it silently drops 2.22 TFLOP of attention, about 7% of the prefill. In CI, the arithmetic of reference traces is gated exactly; operator counts and bytes are reported as drift when a library upgrade changes the decomposition (<a href="https://brendanjameslynskey.github.io/SimEng_07_Jenkins_for_Simulation_Teams/">deck 07</a>).</p>
+</section>
+
+<section class="slide" id="slide-13">
+    <div class="slide-number">13</div>
+    <h2>What to Take Away</h2>
+    <ul>
+        <li><strong>The meta device and fake tensors trace any model without weights:</strong> Llama-3-70B on a laptop, in about a second.</li>
+        <li><strong>One trace format, several front ends,</strong> cross-checked. They agree exactly on arithmetic and differ on traffic, which belongs to the decomposition.</li>
+        <li><strong>Say which code path a trace shows.</strong> The device the tensors claim, and whether the library detected tracing, change the operators.</li>
+        <li><strong>An independent count finds errors</strong>, here in the closed form it was checked against.</li>
+        <li><strong>Coverage is a time metric.</strong> 99.98% of FLOPs on the device can still be under 5% of the time.</li>
+    </ul>
+    <ul class="res-list">
+        <li><a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend">Torch_Sim_Frontend</a><span class="what">The front ends, cost models, coverage report, tests and <code>examples/results.md</code>.</span></li>
+        <li><a href="https://brendanjameslynskey.github.io/InfSim_09_Framework_Integration/">LLM Inference Simulators 09: Framework Integration</a><span class="what">The integration routes, including PrivateUse1 and ONNX Runtime execution providers.</span></li>
+        <li><a href="https://docs.pytorch.org/docs/stable/export.html">torch.export</a> and <a href="https://docs.pytorch.org/docs/stable/torch.compiler_custom_backends.html">custom torch.compile backends</a><span class="what">PyTorch's documentation; these APIs move quickly, so check the version you use.</span></li>
+        <li><a href="https://onnx.ai/onnx/api/shape_inference.html">ONNX shape inference</a><span class="what">Including <code>data_prop</code>.</span></li>
+        <li><a href="https://brendanjameslynskey.github.io/SimEng_09_Specs_Requirements_Test_Plans/">Deck 09: Specifications, Requirements and Test Plans</a><span class="what">Uses this project's requirements and traceability matrix as the worked example.</span></li>
+    </ul>
+</section>
+
+<!-- ════════════════════════════════════ Footer ════════════════════════════════════ -->
+<footer class="footer">
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/SimEng_Hub_Toolkit">Simulation Engineering Toolkit series</a> &middot; <a href="https://brendanjameslynskey.github.io/SimEng_Hub_Toolkit/#glossary">glossary: every concept and where it is explained</a> &middot; code: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend">Torch_Sim_Frontend</a> &middot; <a href="https://github.com/BrendanJamesLynskey/Disaggregated_Inference_Sim">Disaggregated_Inference_Sim</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem;"><a href="https://brendanjameslynskey.github.io/SimEng_09_Specs_Requirements_Test_Plans/">&larr; 09 Specifications, Requirements and Test Plans</a> &nbsp;&middot;&nbsp; <a href="https://brendanjameslynskey.github.io/SimEng_11_Performance_Analysis/">11 Performance Analysis of Simulators and Systems &rarr;</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem;">Interview questions: <a href="https://github.com/BrendanJamesLynskey/Interview_AI_Accelerator_Architecture">Interview_AI_Accelerator_Architecture</a> &middot; <a href="https://github.com/BrendanJamesLynskey/Interview_Machine_Learning">Interview_Machine_Learning</a> &middot; sister series: <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Inference_Simulators">LLM Inference Simulators</a> &middot; <a href="https://github.com/BrendanJamesLynskey/FHE_Hub_Accelerator_Simulators">FHE Accelerator Simulators</a></p>
+</footer>
+
+<script>
+    // Smooth scroll for TOC links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    // Subtle fade-in on scroll
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.slide').forEach(slide => {
+        slide.style.opacity = '0';
+        slide.style.transform = 'translateY(30px)';
+        slide.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(slide);
+    });
+</script>
+
+</body>
+</html>
