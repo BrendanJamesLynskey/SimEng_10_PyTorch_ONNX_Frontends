@@ -938,11 +938,11 @@
     <div class="table-wrap"><table>
 <thead><tr><th>Model</th><th>Parameters</th><th>Operators</th><th>Op types</th><th>Capture (s)</th><th>TFLOP</th><th>Weights read (GB)</th><th>Types with a cost rule</th></tr></thead>
 <tbody>
-<tr><td>llama3-8b</td><td>8.03 B</td><td>3,557</td><td>30</td><td>0.64</td><td>32.97</td><td>15.03</td><td>30</td></tr>
-<tr><td>llama3-70b</td><td>70.55 B</td><td>8,837</td><td>30</td><td>1.23</td><td>295.83</td><td>139.04</td><td>30</td></tr>
+<tr><td>llama3-8b</td><td>8.03 B</td><td>3,557</td><td>30</td><td>0.65</td><td>32.97</td><td>15.03</td><td>30</td></tr>
+<tr><td>llama3-70b</td><td>70.55 B</td><td>8,837</td><td>30</td><td>1.21</td><td>295.83</td><td>139.04</td><td>30</td></tr>
 <tr><td>mistral-7b</td><td>7.24 B</td><td>3,685</td><td>31</td><td>0.66</td><td>31.36</td><td>14.24</td><td>31</td></tr>
-<tr><td>qwen2.5-0.5b</td><td>0.49 B</td><td>2,677</td><td>31</td><td>0.41</td><td>2.39</td><td>0.99</td><td>31</td></tr>
-<tr><td>gpt2</td><td>0.12 B</td><td>771</td><td>27</td><td>0.17</td><td>0.67</td><td>0.25</td><td>27</td></tr>
+<tr><td>qwen2.5-0.5b</td><td>0.49 B</td><td>2,677</td><td>31</td><td>0.40</td><td>2.39</td><td>0.99</td><td>31</td></tr>
+<tr><td>gpt2</td><td>0.12 B</td><td>771</td><td>27</td><td>0.18</td><td>0.67</td><td>0.25</td><td>27</td></tr>
 </tbody></table></div>
     <p class="src">Source: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/examples/results.md">examples/results.md</a> in Torch_Sim_Frontend</p>
     <p>Every parameter was checked to be a meta tensor. The whole results script, which traces all of these and more, peaks at 647 MB of resident memory.</p>
@@ -1052,10 +1052,10 @@
 <thead><tr><th>Front end</th><th>Operators</th><th>Op types</th><th>Matmul FLOPs</th><th>Fused-attention FLOPs</th><th>Total TFLOP</th><th>Bytes moved (GB)</th><th>Weights read (GB)</th><th>Capture (s)</th></tr></thead>
 <tbody>
 <tr><td>dispatch (meta)</td><td>3,557</td><td>30</td><td>32,938,104,455,168</td><td>0</td><td>32.970</td><td>214.35</td><td>15.027</td><td>0.5</td></tr>
-<tr><td>torch.export + Core ATen</td><td>3,850</td><td>37</td><td>32,938,104,455,168</td><td>0</td><td>32.988</td><td>333.97</td><td>15.027</td><td>13.5</td></tr>
-<tr><td>torch.compile backend</td><td>3,426</td><td>35</td><td>32,938,104,455,168</td><td>0</td><td>32.970</td><td>187.40</td><td>15.027</td><td>11.8</td></tr>
+<tr><td>torch.export + Core ATen</td><td>3,850</td><td>37</td><td>32,938,104,455,168</td><td>0</td><td>32.988</td><td>333.97</td><td>15.027</td><td>13.6</td></tr>
+<tr><td>torch.compile backend</td><td>3,426</td><td>35</td><td>32,938,104,455,168</td><td>0</td><td>32.970</td><td>187.40</td><td>15.027</td><td>12.1</td></tr>
 <tr><td>ONNX (exported without weights)</td><td>6,007</td><td>35</td><td>32,938,104,193,024</td><td>0</td><td>32.980</td><td>169.10</td><td>15.027</td><td>0.7</td></tr>
-<tr><td>dispatch (fake CPU tensors)</td><td>4,577</td><td>37</td><td>30,739,081,199,616</td><td>2,220,498,092,032</td><td>32.966</td><td>70.09</td><td>15.027</td><td>0.9</td></tr>
+<tr><td>dispatch (fake CPU tensors)</td><td>4,577</td><td>37</td><td>30,739,081,199,616</td><td>2,220,498,092,032</td><td>32.966</td><td>70.09</td><td>15.027</td><td>0.8</td></tr>
 </tbody></table></div>
     <p class="src">Source: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/examples/results.md">examples/results.md</a> in Torch_Sim_Frontend</p>
     <ul>
@@ -1070,17 +1070,18 @@
     <h2>Checking the Trace Against the Closed Form</h2>
     <p>Disaggregated_Inference_Sim costs a step from a closed form (<a href="https://brendanjameslynskey.github.io/InfSim_02_Simulator_Development_Tutorial/">InfSim 02</a>). An operator trace is an independent count of the same thing, so each checks the other:</p>
     <div class="table-wrap"><table>
-<thead><tr><th>Quantity</th><th>Closed form (InfSim)</th><th>Operator trace</th><th>Difference</th><th>Why</th></tr></thead>
+<thead><tr><th>Quantity</th><th>Closed form (InfSim)</th><th>Operator trace</th><th>Difference</th><th>Why</th><th>Closed form before 2026-10-03</th></tr></thead>
 <tbody>
-<tr><td>Prefill matmul FLOPs, weights</td><td>30,739,080,937,472</td><td>30,739,080,937,472</td><td>0</td><td>exact</td></tr>
-<tr><td>Prefill attention FLOPs</td><td>1,100,048,498,688 (causal)</td><td>2,199,023,255,552 (unmasked)</td><td>1.999x</td><td>the trace counts what the kernel computes, masked scores included</td></tr>
-<tr><td>Decode matmul FLOPs</td><td>16,083,058,688</td><td>16,083,583,104</td><td>524,416</td><td>the new token also attends to itself: 4 x layers x d = 524,288, + rotary 128</td></tr>
-<tr><td>Decode weight bytes per step</td><td>16,059,990,016</td><td>15,009,857,536</td><td>1,050,132,480</td><td>the closed form reads the whole embedding table; a lookup reads one row</td></tr>
+<tr><td>Prefill matmul FLOPs, weights</td><td>30,739,080,937,472</td><td>30,739,080,937,472</td><td>0</td><td>exact</td><td>30,739,080,937,472</td></tr>
+<tr><td>Prefill attention FLOPs</td><td>1,100,048,498,688 (causal)</td><td>2,199,023,255,552 (unmasked)</td><td>1.999x</td><td>the trace counts what the kernel computes, masked scores included</td><td>same</td></tr>
+<tr><td>Decode matmul FLOPs</td><td>16,083,582,976</td><td>16,083,583,104</td><td>128</td><td>the rotary-frequency matmul (128), not modelled</td><td>16,083,058,688 (no self-attention: -524,288)</td></tr>
+<tr><td>Decode weight bytes per step</td><td>15,009,325,056</td><td>15,009,857,536</td><td>532,480</td><td>the RMSNorm weights (532,480), not modelled</td><td>16,059,990,016 (whole embedding table: +1,050,664,960)</td></tr>
 </tbody></table></div>
     <p class="src">Source: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/examples/results.md">examples/results.md</a> in Torch_Sim_Frontend</p>
     <ul>
         <li><strong>The weight FLOPs agree exactly</strong>, and a Hypothesis property test checks the same identity for random Llama-shaped configurations, lengths and batch sizes. (Its first failure was in the test's formula: the rotary frequencies are computed once per batch, not per sequence.)</li>
-        <li><strong>The trace found two errors in the closed form.</strong> A decode step charges the whole embedding table, 1.05 GB, 6.4% of the step's bytes, when a lookup reads one row. And it leaves out the new token attending to itself. Neither is large; both are the kind of thing only an independent count finds.</li>
+        <li><strong>The trace found two errors in the closed form, since corrected.</strong> Every decode step was charged the whole embedding table, 1.05 GB or 6.4% of the step's bytes, when a lookup reads one row. And it left out the new token attending to itself, 524,288 FLOPs per sequence per step. Neither is large; both are the kind of thing only an independent count finds.</li>
+        <li><strong>Found, then fixed (2026-10-03).</strong> Disaggregated_Inference_Sim, its JavaScript port and its <a href="https://github.com/BrendanJamesLynskey/Rust_DES_Kernel">Rust port</a> were corrected, and every number the two series quote from them was regenerated. The last column above is the closed form before the fix. The two now agree, apart from two terms the closed form does not model: the 128-FLOP rotary matmul and 532,480 bytes of RMSNorm weights. The tests that reported the discrepancy now assert the agreement. The corrected decode step at context 2,048 takes 5.70 ms, against 6.09 ms before, which equals the fused trace's ideal-fusion bound (next slide).</li>
         <li><strong>Attention is a convention, not an error.</strong> The trace counts what the kernel computes (unmasked), the closed form counts useful work (causal).</li>
     </ul>
 </section>
@@ -1103,8 +1104,8 @@
 <tbody>
 <tr><td>Prefill 2,048, meta trace (math attention)</td><td>126.68</td><td>44.6%</td><td>71.01</td><td>58.53</td><td>compute</td></tr>
 <tr><td>Prefill 2,048, fake-CPU trace (fused attention)</td><td>76.14</td><td>79.6%</td><td>60.62</td><td>58.53</td><td>compute</td></tr>
-<tr><td>Decode @2,048, meta trace</td><td>9.34</td><td>0.0%</td><td>6.41</td><td>6.09</td><td>memory</td></tr>
-<tr><td>Decode @2,048, fake-CPU trace</td><td>5.91</td><td>0.0%</td><td>5.70</td><td>6.09</td><td>memory</td></tr>
+<tr><td>Decode @2,048, meta trace</td><td>9.34</td><td>0.0%</td><td>6.41</td><td>5.70</td><td>memory</td></tr>
+<tr><td>Decode @2,048, fake-CPU trace</td><td>5.91</td><td>0.0%</td><td>5.70</td><td>5.70</td><td>memory</td></tr>
 </tbody></table></div>
     <p class="src">Source: <a href="https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend/blob/main/examples/results.md">examples/results.md</a> in Torch_Sim_Frontend</p>
     <p>Prefill is compute-bound as a whole. Yet in the meta trace, the materialised score matrix makes more than half its time memory-bound: 126.68 ms, against 76.14 ms with fused attention and 58.53 ms from the closed form. That gap is the case for flash attention, measured from a trace. The per-operator sum is never below the whole-trace roofline, because small memory-bound operators cannot overlap with large matmuls in this model.</p>
@@ -1197,7 +1198,7 @@
         <li><strong>The meta device and fake tensors trace any model without weights:</strong> Llama-3-70B on a laptop, in about a second.</li>
         <li><strong>One trace format, several front ends,</strong> cross-checked. They agree exactly on arithmetic and differ on traffic, which belongs to the decomposition.</li>
         <li><strong>Say which code path a trace shows.</strong> The device the tensors claim, and whether the library detected tracing, change the operators.</li>
-        <li><strong>An independent count finds errors</strong>, here in the closed form it was checked against.</li>
+        <li><strong>An independent count finds errors</strong>: here two in the closed form it was checked against, which were then fixed and the published numbers regenerated.</li>
         <li><strong>Coverage is a time metric.</strong> 99.98% of FLOPs on the device can still be under 5% of the time.</li>
     </ul>
     <ul class="res-list">
